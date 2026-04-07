@@ -593,7 +593,6 @@
             
             .word-cell {
                 font-size: 22px;
-                pointer-events: none;
             }
             
             .pronunciation {
@@ -625,11 +624,23 @@
                 font-size: 22px;
                 background: #f0f0f0;
                 border-radius: 50%;
+                position: relative;
+                z-index: 10;
+                cursor: pointer;
+                border: none;
+                outline: none;
+                -webkit-appearance: none;
             }
             
             .icon-btn:active {
-                background: #e0e0e0;
-                transform: scale(0.95);
+                background: #3498db;
+                color: white;
+                transform: scale(0.9);
+            }
+            
+            .action-btns {
+                position: relative;
+                z-index: 10;
             }
             
             /* 展开行适配 */
@@ -49562,7 +49573,7 @@
                 const sources = word.sources ? word.sources.split('、').filter(s => s) : [];
                 
                 html += `
-                    <tr class="${isMastered ? 'mastered' : ''}" onclick="handleRowClick(${word.rank}, event)">
+                    <tr class="${isMastered ? 'mastered' : ''}" data-rank="${word.rank}">
                         <td>${word.rank}</td>
                         <td class="word-cell">${word.word}</td>
                         <td class="pronunciation">${word.pronunciation}</td>
@@ -49573,14 +49584,14 @@
                         <td>
                             <div class="action-btns">
                                 <button class="icon-btn ${isMastered ? 'active' : ''} mastered-btn" 
-                                        onclick="toggleMastered(${word.rank}, event)" 
+                                        data-action="master" data-rank="${word.rank}" 
                                         title="${isMastered ? '取消掌握' : '标记已掌握'}">
                                     ${isMastered ? '' : '○'}
                                 </button>
-                                <button class="icon-btn" onclick="playAudio('${word.word}', event)" title="播放发音">
+                                <button class="icon-btn" data-action="audio" data-word="${word.word}" title="播放发音">
                                     🔊
                                 </button>
-                                <button class="icon-btn expand-btn" onclick="toggleExpand(${word.rank}, event)" title="查看详情">
+                                <button class="icon-btn expand-btn" data-action="expand" data-rank="${word.rank}" title="查看详情">
                                     📋
                                 </button>
                             </div>
@@ -49871,6 +49882,44 @@
             document.getElementById('sourceFilter').addEventListener('change', (e) => {
                 currentSource = e.target.value;
                 applyFilters();
+            });
+            
+            // 使用事件委托处理表格按钮点击（手机端更可靠）
+            document.getElementById('tableBody').addEventListener('click', (e) => {
+                const btn = e.target.closest('.icon-btn');
+                if (!btn) return;
+                
+                const action = btn.dataset.action;
+                if (!action) return;
+                
+                e.stopPropagation();
+                e.preventDefault();
+                
+                switch(action) {
+                    case 'master':
+                        toggleMastered(parseInt(btn.dataset.rank), e);
+                        break;
+                    case 'audio':
+                        playAudio(btn.dataset.word, e);
+                        break;
+                    case 'expand':
+                        toggleExpand(parseInt(btn.dataset.rank), e);
+                        break;
+                }
+            });
+            
+            // 处理行点击（展开详情）
+            document.getElementById('tableBody').addEventListener('click', (e) => {
+                // 如果点击的是按钮，不处理
+                if (e.target.closest('.icon-btn') || e.target.closest('.action-btns')) {
+                    return;
+                }
+                
+                const row = e.target.closest('tr[data-rank]');
+                if (row) {
+                    const rank = parseInt(row.dataset.rank);
+                    toggleExpand(rank, e);
+                }
             });
         });
     </script>
