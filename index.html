@@ -646,24 +646,30 @@
             /* 展开行适配 - 手机端 */
             .expand-row {
                 display: none;
-                margin-top: 0;
-                padding: 0;
-                background: #f8f9fa !important;
-                border-radius: 0 0 12px 12px;
             }
             
             .expand-row.show {
                 display: block !important;
+                background: #f8f9fa !important;
+                border-radius: 0 0 12px 12px;
+                margin-top: -10px;
+                margin-bottom: 10px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             }
             
-            .expand-content {
-                padding: 15px;
+            .expand-row.show td {
+                display: block !important;
+                padding: 15px !important;
                 background: #f8f9fa;
                 border-radius: 0 0 12px 12px;
             }
             
+            .expand-content {
+                padding: 0;
+            }
+            
             .detail-section {
-                margin-bottom: 12px;
+                margin-bottom: 15px;
             }
             
             .detail-section:last-child {
@@ -671,21 +677,31 @@
             }
             
             .detail-label {
-                font-size: 11px;
+                font-size: 12px;
                 color: #666;
-                margin-bottom: 5px;
+                margin-bottom: 8px;
                 display: block;
+                font-weight: 500;
             }
             
             .detail-value {
-                font-size: 14px;
+                font-size: 15px;
                 color: #333;
                 line-height: 1.6;
             }
             
+            .sources-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            
             .source-tag {
-                padding: 6px 10px;
-                font-size: 11px;
+                padding: 8px 12px;
+                font-size: 12px;
+                background: white;
+                border-radius: 6px;
+                border: 1px solid #ddd;
             }
             
             /* 展开时卡片样式调整 */
@@ -49696,9 +49712,13 @@
             renderTable();
         }
         
-        // 音频播放 - 手机端优化版本
-        let currentAudio = null;
+        // 音频播放 - 使用 ResponsiveVoice 日语TTS
         let isPlaying = false;
+        
+        // 加载 ResponsiveVoice
+        const rvScript = document.createElement('script');
+        rvScript.src = 'https://code.responsivevoice.org/responsivevoice.js';
+        document.head.appendChild(rvScript);
         
         function playAudio(text, event) {
             if (event) {
@@ -49706,122 +49726,53 @@
                 event.preventDefault();
             }
             
-            // 防止重复点击
-            if (isPlaying) {
-                console.log('音频正在播放中...');
-                return;
-            }
-            
+            if (isPlaying) return;
             isPlaying = true;
-            showToast('正在加载音频...');
             
-            // 停止当前播放
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
+            showToast('播放中...');
+            
+            // 停止之前的播放
+            if (window.responsiveVoice) {
+                window.responsiveVoice.cancel();
             }
             window.speechSynthesis.cancel();
             
-            // 检测是否是手机端
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            
-            if (isMobile) {
-                // 手机端：直接使用Web Speech API，避免加载延迟
-                playMobileTTS(text);
+            // 使用 ResponsiveVoice 播放日语
+            if (window.responsiveVoice && window.responsiveVoice.voiceSupport()) {
+                window.responsiveVoice.speak(text, 'Japanese Female', {
+                    rate: 0.9,
+                    pitch: 1,
+                    onend: () => { isPlaying = false; },
+                    onerror: () => { 
+                        isPlaying = false; 
+                        fallbackTTS(text);
+                    }
+                });
             } else {
-                // 电脑端：尝试本地音频
-                tryLocalAudio(text);
+                // 备用方案
+                fallbackTTS(text);
             }
         }
         
-        // 手机端TTS - 直接使用系统语音，响应更快
-        function playMobileTTS(text) {
+        // 备用TTS方案
+        function fallbackTTS(text) {
             if (!('speechSynthesis' in window)) {
-                showToast('您的设备不支持语音播放');
+                showToast('设备不支持语音');
                 isPlaying = false;
                 return;
             }
             
-            // 先加载语音列表
-            let voices = window.speechSynthesis.getVoices();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ja-JP';
+            utterance.rate = 0.8;
             
-            const doSpeak = () => {
-                voices = window.speechSynthesis.getVoices();
-                // 优先找日语语音
-                let jaVoice = voices.find(v => v.lang === 'ja-JP' || v.lang.startsWith('ja'));
-                // 如果没有日语语音，尝试中文语音（某些手机中文语音也能读日语）
-                if (!jaVoice) {
-                    jaVoice = voices.find(v => v.lang === 'zh-CN' || v.lang.startsWith('zh'));
-                }
-                
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = jaVoice ? jaVoice.lang : 'ja-JP';
-                utterance.rate = 0.8;
-                utterance.pitch = 1;
-                
-                if (jaVoice) {
-                    utterance.voice = jaVoice;
-                }
-                
-                utterance.onstart = () => {
-                    showToast('正在播放...');
-                };
-                
-                utterance.onend = () => {
-                    isPlaying = false;
-                };
-                
-                utterance.onerror = () => {
-                    isPlaying = false;
-                    showToast('播放失败');
-                };
-                
-                window.speechSynthesis.speak(utterance);
+            utterance.onend = () => { isPlaying = false; };
+            utterance.onerror = () => { 
+                isPlaying = false;
+                showToast('播放失败');
             };
             
-            // 确保语音列表已加载
-            if (voices.length === 0) {
-                window.speechSynthesis.onvoiceschanged = doSpeak;
-                // 强制加载语音
-                window.speechSynthesis.getVoices();
-            } else {
-                doSpeak();
-            }
-        }
-        
-        // 电脑端：尝试本地音频
-        function tryLocalAudio(text) {
-            const audioFile = `audio/${text}.mp3`;
-            const audio = new Audio(audioFile);
-            
-            let hasPlayed = false;
-            
-            audio.oncanplay = function() {
-                if (!hasPlayed) {
-                    hasPlayed = true;
-                    currentAudio = audio;
-                    audio.play().then(() => {
-                        isPlaying = false;
-                    }).catch(() => {
-                        playMobileTTS(text);
-                    });
-                }
-            };
-            
-            audio.onerror = function() {
-                if (!hasPlayed) {
-                    hasPlayed = true;
-                    playMobileTTS(text);
-                }
-            };
-            
-            // 超时处理
-            setTimeout(() => {
-                if (!hasPlayed) {
-                    hasPlayed = true;
-                    playMobileTTS(text);
-                }
-            }, 1000);
+            window.speechSynthesis.speak(utterance);
         }
         
         // 显示提示信息
