@@ -49480,19 +49480,6 @@
             return map[pos] || 'pos-other';
         }
         
-        // 切换已掌握状态
-        function toggleMastered(rank, event) {
-            event.stopPropagation();
-            if (masteredWords.has(rank)) {
-                masteredWords.delete(rank);
-            } else {
-                masteredWords.add(rank);
-            }
-            saveMasteredWords();
-            updateStats();
-            renderTable();
-        }
-        
         // 切换显示已掌握
         function toggleShowMastered() {
             showMasteredOnly = !showMasteredOnly;
@@ -49510,7 +49497,7 @@
         // 处理行点击（手机端优化）
         function handleRowClick(rank, event) {
             // 如果点击的是按钮区域，不触发展开
-            if (event && event.target.closest('.action-btns')) {
+            if (event && (event.target.closest('.action-btns') || event.target.closest('.icon-btn'))) {
                 return;
             }
             toggleExpand(rank, event);
@@ -49520,11 +49507,45 @@
         function toggleExpand(rank, event) {
             if (event) {
                 event.stopPropagation();
+                event.preventDefault();
             }
             const expandRow = document.getElementById(`expand-${rank}`);
             if (expandRow) {
                 expandRow.classList.toggle('show');
+                // 手机端滚动到展开内容
+                if (window.innerWidth <= 768 && expandRow.classList.contains('show')) {
+                    setTimeout(() => {
+                        expandRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 100);
+                }
             }
+        }
+        
+        // 切换已掌握状态
+        function toggleMastered(rank, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            
+            if (masteredWords.has(rank)) {
+                masteredWords.delete(rank);
+            } else {
+                masteredWords.add(rank);
+                // 添加掌握动画效果
+                const row = document.querySelector(`tr[onclick*="handleRowClick(${rank}"]`);
+                if (row) {
+                    row.style.animation = 'masteredPulse 0.5s ease';
+                    setTimeout(() => {
+                        row.style.animation = '';
+                    }, 500);
+                }
+            }
+            
+            localStorage.setItem('masteredWords', JSON.stringify([...masteredWords]));
+            renderTable();
+            updateStats();
+            showToast(masteredWords.has(rank) ? '已标记为掌握' : '已取消掌握标记');
         }
         
         // 渲染表格
@@ -49746,6 +49767,31 @@
                 20% { opacity: 1; transform: translateX(-50%) translateY(0); }
                 80% { opacity: 1; transform: translateX(-50%) translateY(0); }
                 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            }
+            @keyframes masteredPulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.02); background: #c8e6c9; }
+                100% { transform: scale(1); }
+            }
+            /* 手机端触摸反馈 */
+            @media (max-width: 768px) {
+                .icon-btn {
+                    touch-action: manipulation;
+                    -webkit-touch-callout: none;
+                    -webkit-user-select: none;
+                    user-select: none;
+                }
+                .icon-btn:active {
+                    transform: scale(0.9);
+                    background: #3498db !important;
+                    color: white;
+                }
+                tbody tr {
+                    touch-action: manipulation;
+                }
+                tbody tr:active {
+                    background: #f0f8ff;
+                }
             }
         `;
         document.head.appendChild(style);
