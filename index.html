@@ -643,31 +643,55 @@
                 z-index: 10;
             }
             
-            /* 展开行适配 */
+            /* 展开行适配 - 手机端 */
             .expand-row {
-                margin-top: 10px;
-                padding-top: 10px;
+                display: none;
+                margin-top: 0;
+                padding: 0;
+                background: #f8f9fa !important;
+                border-radius: 0 0 12px 12px;
+            }
+            
+            .expand-row.show {
+                display: block !important;
             }
             
             .expand-content {
-                padding: 0;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 0 0 12px 12px;
             }
             
             .detail-section {
                 margin-bottom: 12px;
             }
             
+            .detail-section:last-child {
+                margin-bottom: 0;
+            }
+            
             .detail-label {
                 font-size: 11px;
+                color: #666;
+                margin-bottom: 5px;
+                display: block;
             }
             
             .detail-value {
-                font-size: 13px;
+                font-size: 14px;
+                color: #333;
+                line-height: 1.6;
             }
             
             .source-tag {
                 padding: 6px 10px;
                 font-size: 11px;
+            }
+            
+            /* 展开时卡片样式调整 */
+            tbody tr.has-expand {
+                border-radius: 12px 12px 0 0;
+                margin-bottom: 0;
             }
             
             /* 分页适配 */
@@ -49520,14 +49544,32 @@
                 event.stopPropagation();
                 event.preventDefault();
             }
+            
             const expandRow = document.getElementById(`expand-${rank}`);
+            const mainRow = document.querySelector(`tr[data-rank="${rank}"]`);
+            
             if (expandRow) {
-                expandRow.classList.toggle('show');
-                // 手机端滚动到展开内容
-                if (window.innerWidth <= 768 && expandRow.classList.contains('show')) {
-                    setTimeout(() => {
-                        expandRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 100);
+                const isShowing = expandRow.classList.contains('show');
+                
+                if (isShowing) {
+                    // 收起
+                    expandRow.classList.remove('show');
+                    if (mainRow) {
+                        mainRow.classList.remove('has-expand');
+                    }
+                } else {
+                    // 展开
+                    expandRow.classList.add('show');
+                    if (mainRow) {
+                        mainRow.classList.add('has-expand');
+                    }
+                    
+                    // 手机端滚动到展开内容
+                    if (window.innerWidth <= 768) {
+                        setTimeout(() => {
+                            expandRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 150);
+                    }
                 }
             }
         }
@@ -49654,89 +49696,132 @@
             renderTable();
         }
         
-        // 音频缓存
-        const audioCache = {};
+        // 音频播放 - 手机端优化版本
         let currentAudio = null;
+        let isPlaying = false;
         
-        // 播放音频 - 优先使用本地音频，其次使用Google翻译TTS
         function playAudio(text, event) {
-            if (event) event.stopPropagation();
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
             
-            // 停止当前播放的音频
+            // 防止重复点击
+            if (isPlaying) {
+                console.log('音频正在播放中...');
+                return;
+            }
+            
+            isPlaying = true;
+            showToast('正在加载音频...');
+            
+            // 停止当前播放
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio = null;
             }
             window.speechSynthesis.cancel();
             
-            // 尝试播放本地音频文件
+            // 检测是否是手机端
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // 手机端：直接使用Web Speech API，避免加载延迟
+                playMobileTTS(text);
+            } else {
+                // 电脑端：尝试本地音频
+                tryLocalAudio(text);
+            }
+        }
+        
+        // 手机端TTS - 直接使用系统语音，响应更快
+        function playMobileTTS(text) {
+            if (!('speechSynthesis' in window)) {
+                showToast('您的设备不支持语音播放');
+                isPlaying = false;
+                return;
+            }
+            
+            // 先加载语音列表
+            let voices = window.speechSynthesis.getVoices();
+            
+            const doSpeak = () => {
+                voices = window.speechSynthesis.getVoices();
+                // 优先找日语语音
+                let jaVoice = voices.find(v => v.lang === 'ja-JP' || v.lang.startsWith('ja'));
+                // 如果没有日语语音，尝试中文语音（某些手机中文语音也能读日语）
+                if (!jaVoice) {
+                    jaVoice = voices.find(v => v.lang === 'zh-CN' || v.lang.startsWith('zh'));
+                }
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = jaVoice ? jaVoice.lang : 'ja-JP';
+                utterance.rate = 0.8;
+                utterance.pitch = 1;
+                
+                if (jaVoice) {
+                    utterance.voice = jaVoice;
+                }
+                
+                utterance.onstart = () => {
+                    showToast('正在播放...');
+                };
+                
+                utterance.onend = () => {
+                    isPlaying = false;
+                };
+                
+                utterance.onerror = () => {
+                    isPlaying = false;
+                    showToast('播放失败');
+                };
+                
+                window.speechSynthesis.speak(utterance);
+            };
+            
+            // 确保语音列表已加载
+            if (voices.length === 0) {
+                window.speechSynthesis.onvoiceschanged = doSpeak;
+                // 强制加载语音
+                window.speechSynthesis.getVoices();
+            } else {
+                doSpeak();
+            }
+        }
+        
+        // 电脑端：尝试本地音频
+        function tryLocalAudio(text) {
             const audioFile = `audio/${text}.mp3`;
             const audio = new Audio(audioFile);
             
-            audio.oncanplaythrough = function() {
-                currentAudio = audio;
-                audio.play().catch(e => {
-                    console.log('本地音频播放失败，尝试在线TTS');
-                    playGoogleTTS(text);
-                });
+            let hasPlayed = false;
+            
+            audio.oncanplay = function() {
+                if (!hasPlayed) {
+                    hasPlayed = true;
+                    currentAudio = audio;
+                    audio.play().then(() => {
+                        isPlaying = false;
+                    }).catch(() => {
+                        playMobileTTS(text);
+                    });
+                }
             };
             
             audio.onerror = function() {
-                // 本地音频不存在，使用Google翻译TTS
-                playGoogleTTS(text);
+                if (!hasPlayed) {
+                    hasPlayed = true;
+                    playMobileTTS(text);
+                }
             };
             
-            // 设置超时，如果音频加载太慢就使用TTS
+            // 超时处理
             setTimeout(() => {
-                if (audio.readyState < 3) {
-                    playGoogleTTS(text);
+                if (!hasPlayed) {
+                    hasPlayed = true;
+                    playMobileTTS(text);
                 }
-            }, 500);
-        }
-        
-        // 使用Google翻译TTS播放日语
-        function playGoogleTTS(text) {
-            // 使用Google翻译的TTS服务，日语发音更标准
-            const encodedText = encodeURIComponent(text);
-            const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=ja&client=tw-ob`;
-            
-            const audio = new Audio(audioUrl);
-            audio.crossOrigin = 'anonymous';
-            
-            audio.oncanplaythrough = function() {
-                currentAudio = audio;
-                audio.play().catch(e => {
-                    console.log('Google TTS播放失败，尝试备用方案');
-                    playBackupTTS(text);
-                });
-            };
-            
-            audio.onerror = function() {
-                playBackupTTS(text);
-            };
-        }
-        
-        // 备用方案：使用浏览器语音合成
-        function playBackupTTS(text) {
-            if ('speechSynthesis' in window) {
-                // 尝试找到日语语音
-                const voices = window.speechSynthesis.getVoices();
-                const japaneseVoice = voices.find(v => v.lang.includes('ja') || v.lang.includes('JP'));
-                
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'ja-JP';
-                utterance.rate = 0.7;
-                utterance.pitch = 1;
-                
-                if (japaneseVoice) {
-                    utterance.voice = japaneseVoice;
-                }
-                
-                window.speechSynthesis.speak(utterance);
-            } else {
-                // 最后的备用：显示提示
-                showToast('音频播放失败，请检查网络连接');
-            }
+            }, 1000);
         }
         
         // 显示提示信息
