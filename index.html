@@ -2,7 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
     <title>EJU听力单词词频统计</title>
     <style>
         * {
@@ -413,53 +416,270 @@
             cursor: pointer;
         }
         
+        /* 手机端优化 - 微信适配 */
         @media (max-width: 768px) {
             body {
-                padding: 10px;
+                padding: 0;
+                background: #f5f5f5;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            .container {
+                border-radius: 0;
+                box-shadow: none;
             }
             
             .header {
-                padding: 20px;
+                padding: 15px 10px;
             }
             
             .header h1 {
-                font-size: 20px;
+                font-size: 18px;
+            }
+            
+            .header p {
+                font-size: 12px;
             }
             
             .stats {
-                gap: 15px;
+                gap: 10px;
+                margin-top: 15px;
+            }
+            
+            .stat-number {
+                font-size: 18px;
+            }
+            
+            .stat-label {
+                font-size: 10px;
             }
             
             .controls {
-                padding: 15px;
+                padding: 12px 10px;
             }
             
             .control-row {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 10px;
+                margin-bottom: 12px;
             }
             
             .control-label {
                 min-width: auto;
-            }
-            
-            th, td {
-                padding: 10px 8px;
                 font-size: 12px;
             }
             
-            .word-cell {
+            .search-box input {
+                padding: 14px 12px;
+                font-size: 16px;
+                border-radius: 8px;
+                -webkit-appearance: none;
+            }
+            
+            .filter-btn {
+                padding: 12px 16px;
                 font-size: 14px;
+                min-height: 44px;
+                -webkit-tap-highlight-color: rgba(52, 152, 219, 0.3);
+            }
+            
+            .source-filter {
+                padding: 14px 12px;
+                font-size: 14px;
+                min-height: 44px;
+            }
+            
+            .progress-bar {
+                padding: 12px 10px;
+            }
+            
+            /* 手机端卡片式布局 */
+            .table-container {
+                max-height: none;
+                padding: 10px;
+                background: #f5f5f5;
+            }
+            
+            table {
+                display: block;
+                background: transparent;
+            }
+            
+            thead {
+                display: none;
+            }
+            
+            tbody {
+                display: block;
+            }
+            
+            tbody tr {
+                display: block;
+                background: white;
+                margin-bottom: 10px;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                padding: 15px;
+                border: none;
+            }
+            
+            tbody tr:nth-child(even) {
+                background: white;
+            }
+            
+            tbody tr:hover {
+                background: white;
+            }
+            
+            tbody tr.mastered {
+                background: #e8f5e9 !important;
+            }
+            
+            td {
+                display: block;
+                padding: 0;
+                border: none;
+                margin-bottom: 8px;
+            }
+            
+            td:last-child {
+                margin-bottom: 0;
+            }
+            
+            /* 隐藏原表格列，用自定义布局 */
+            td:nth-child(1) { display: none; } /* 排名隐藏 */
+            
+            td:nth-child(2) { /* 单词 */
+                font-size: 22px;
+                font-weight: bold;
+                color: #2c3e50;
+                margin-bottom: 5px;
+            }
+            
+            td:nth-child(3) { /* 读音 */
+                font-size: 16px;
+                color: #666;
+                margin-bottom: 8px;
+            }
+            
+            td:nth-child(4) { /* 翻译 */
+                font-size: 14px;
+                color: #333;
+                line-height: 1.5;
+                max-width: none;
+                margin-bottom: 12px;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 8px;
+            }
+            
+            td:nth-child(5), /* 次数 */
+            td:nth-child(6), /* 难度 */
+            td:nth-child(7) { /* 词性 */
+                display: inline-block;
+                margin-right: 10px;
+                margin-bottom: 0;
+            }
+            
+            td:nth-child(8) { /* 操作 */
+                display: flex;
+                justify-content: flex-end;
+                gap: 15px;
+                margin-top: 12px;
+                padding-top: 12px;
+                border-top: 1px solid #eee;
+            }
+            
+            .word-cell {
+                font-size: 22px;
+                pointer-events: none;
+            }
+            
+            .pronunciation {
+                font-size: 16px;
             }
             
             .translation {
-                max-width: 150px;
+                max-width: none;
+                font-size: 14px;
+            }
+            
+            .count-badge {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+            
+            .difficulty {
+                font-size: 18px;
+            }
+            
+            .pos-tag {
+                padding: 6px 12px;
+                font-size: 12px;
             }
             
             .icon-btn {
-                width: 32px;
-                height: 32px;
-                font-size: 16px;
+                width: 48px;
+                height: 48px;
+                font-size: 22px;
+                background: #f0f0f0;
+                border-radius: 50%;
+            }
+            
+            .icon-btn:active {
+                background: #e0e0e0;
+                transform: scale(0.95);
+            }
+            
+            /* 展开行适配 */
+            .expand-row {
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            
+            .expand-content {
+                padding: 0;
+            }
+            
+            .detail-section {
+                margin-bottom: 12px;
+            }
+            
+            .detail-label {
+                font-size: 11px;
+            }
+            
+            .detail-value {
+                font-size: 13px;
+            }
+            
+            .source-tag {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+            
+            /* 分页适配 */
+            .pagination {
+                padding: 15px 10px;
+                gap: 10px;
+            }
+            
+            .page-btn {
+                padding: 14px 24px;
+                font-size: 15px;
+                min-height: 48px;
+                -webkit-tap-highlight-color: rgba(52, 152, 219, 0.3);
+            }
+            
+            .page-info {
+                font-size: 13px;
+            }
+            
+            .page-size-select {
+                padding: 12px;
+                font-size: 14px;
+                min-height: 44px;
             }
         }
     </style>
@@ -49287,8 +49507,20 @@
             applyFilters();
         }
         
+        // 处理行点击（手机端优化）
+        function handleRowClick(rank, event) {
+            // 如果点击的是按钮区域，不触发展开
+            if (event && event.target.closest('.action-btns')) {
+                return;
+            }
+            toggleExpand(rank, event);
+        }
+        
         // 展开/收起详情
-        function toggleExpand(rank) {
+        function toggleExpand(rank, event) {
+            if (event) {
+                event.stopPropagation();
+            }
             const expandRow = document.getElementById(`expand-${rank}`);
             if (expandRow) {
                 expandRow.classList.toggle('show');
@@ -49309,7 +49541,7 @@
                 const sources = word.sources ? word.sources.split('、').filter(s => s) : [];
                 
                 html += `
-                    <tr class="${isMastered ? 'mastered' : ''}" onclick="toggleExpand(${word.rank})">
+                    <tr class="${isMastered ? 'mastered' : ''}" onclick="handleRowClick(${word.rank}, event)">
                         <td>${word.rank}</td>
                         <td class="word-cell">${word.word}</td>
                         <td class="pronunciation">${word.pronunciation}</td>
@@ -49327,7 +49559,7 @@
                                 <button class="icon-btn" onclick="playAudio('${word.word}', event)" title="播放发音">
                                     🔊
                                 </button>
-                                <button class="icon-btn expand-btn" title="查看详情">
+                                <button class="icon-btn expand-btn" onclick="toggleExpand(${word.rank}, event)" title="查看详情">
                                     📋
                                 </button>
                             </div>
